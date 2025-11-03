@@ -1,10 +1,10 @@
 # schemas.py
 
 from pydantic import BaseModel, EmailStr
+# ALTERADO: Importa 'List' de 'typing'
 from typing import Dict, List, Union
 
 # --- Esquemas para Usuários ---
-# (Seu código para UserBase, UserCreate, User)
 class UserBase(BaseModel):
     email: EmailStr
 class UserCreate(UserBase):
@@ -14,32 +14,66 @@ class User(UserBase):
     class Config:
         from_attributes = True
 
-# --- NOVO: Esquemas para Questões ---
+# --- Esquemas para Autenticação (Token) ---
+class TokenData(BaseModel):
+    email: str | None = None
+class Token(BaseModel):
+    access_token: str
+    token_type: str
 
-# Esquema base para os dados de uma questão
+# --- Esquemas para Questões ---
 class QuestionBase(BaseModel):
     subject: str
     text: str
     options: Union[List[str], Dict[str, str]] 
     source: str | None = None
     year: int | None = None
-
-# <<< GARANTA QUE ESTA CLASSE EXISTA E ESTEJA CORRETA >>>
-# Esquema para criar uma nova questão (inclui a resposta correta)
-class QuestionCreate(QuestionBase): # <-- O nome deve ser exatamente este
+class QuestionCreate(QuestionBase):
     correct_answer: str
-
-# Esquema para retornar uma questão pela API
 class Question(QuestionBase):
     id: int
     class Config:
         from_attributes = True
 
-# NOVO: Schema para o que está DENTRO do token JWT
-class TokenData(BaseModel):
-    email: str | None = None
+# --- NOVO: Esquemas para Tópicos do Cronograma ---
 
-# NOVO: Schema para o que será RETORNADO no endpoint de login
-class Token(BaseModel):
-    access_token: str
-    token_type: str
+# O que o usuário envia para criar um tópico (apenas o nome)
+class TopicoCronogramaCreate(BaseModel):
+    nome: str
+
+# Como o tópico será retornado pela API (com ID e status)
+class TopicoCronograma(TopicoCronogramaCreate):
+    id: int
+    concluido: bool
+
+    class Config:
+        from_attributes = True # Permite ler de objetos SQLAlchemy
+
+# --- NOVO: Esquemas para Matérias do Cronograma ---
+
+# O que o usuário envia para criar uma matéria (apenas o nome)
+class MateriaCronogramaCreate(BaseModel):
+    nome: str
+
+# Como a matéria será retornada pela API (com ID e a lista de seus tópicos)
+class MateriaCronograma(MateriaCronogramaCreate):
+    id: int
+    topicos: List[TopicoCronograma] = [] # Lista aninhada de tópicos
+
+    class Config:
+        from_attributes = True # Permite ler de objetos SQLAlchemy
+
+# --- NOVO: Esquemas para o Cronograma Principal ---
+
+# O que o usuário envia para criar um cronograma (apenas o nome)
+class CronogramaCreate(BaseModel):
+    nome: str
+
+# Como o cronograma completo será retornado pela API (com ID, dono e a lista de matérias)
+class Cronograma(CronogramaCreate):
+    id: int
+    owner_id: int
+    materias: List[MateriaCronograma] = [] # Lista aninhada de matérias
+
+    class Config:
+        from_attributes = True # Permite ler de objetos SQLAlchemy
