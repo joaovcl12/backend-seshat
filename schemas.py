@@ -34,3 +34,12 @@ class Question(QuestionBase):
     id: int
     class Config:
         from_attributes = True
+
+# NOVO: Schema para o que está DENTRO do token JWT
+class TokenData(BaseModel):
+    email: str | None = None
+
+# NOVO: Schema para o que será RETORNADO no endpoint de login
+class Token(BaseModel):
+    access_token: str
+    token_type: str
