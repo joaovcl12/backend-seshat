@@ -21,7 +21,7 @@ app.add_middleware(CORSMiddleware, allow_origins=origins, allow_credentials=True
 def read_root(): return {"message": "API do Projeto SeShat está no ar!"}
 @app.get("/materias")
 def get_materias():
-    subjects = ['Matemática', 'Português', 'História', 'Redação', 'Física' 'Linguagens', 'Química', 'Biologia', 'Geografia', 'Inglês']
+    subjects = ['Matemática', 'Português', 'História', 'Redação', 'Física', 'Linguagens', 'Química', 'Biologia', 'Geografia', 'Inglês']
     return {"materias_disponiveis": subjects}
 @app.post("/register", response_model=schemas.User, status_code=status.HTTP_201_CREATED)
 def register_user(user_data: schemas.UserCreate, db: Session = Depends(get_db)):
