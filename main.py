@@ -68,42 +68,32 @@ def read_questions_by_subject(
     return questions
 
 
-# --- NOVO: Endpoint para Verificar Resposta ---
+# --- Endpoint para Verificar Resposta ---
 
 @app.post("/perguntas/verificar", response_model=schemas.AnswerCheckResponse)
 def check_question_answer(
-    answer_data: schemas.AnswerCheckRequest, # Recebe o JSON com question_id e user_answer
+    answer_data: schemas.AnswerCheckRequest, 
     db: Session = Depends(get_db),
-    # Protege o endpoint: o usuário deve estar logado para responder
     current_user: models.User = Depends(security.get_current_user) 
 ):
     """
     Verifica se a resposta do usuário para uma questão está correta.
     Requer autenticação.
     """
-    
-    # 1. Busca a questão no banco de dados usando a nova função do CRUD
     question = crud.get_question_by_id(db, question_id=answer_data.question_id)
-    
-    # 2. Verifica se a questão existe
     if not question:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, 
                             detail="Questão não encontrada.")
     
-    # 3. Compara a resposta do usuário com a resposta correta salva no banco
     is_correct = (question.correct_answer == answer_data.user_answer)
     
-    # (Futuramente, poderíamos salvar essa tentativa de resposta no banco, 
-    #  ligando-a ao current_user.id para o resumo de erros)
-    
-    # 4. Retorna o resultado para o frontend
     return {
         "is_correct": is_correct,
         "correct_answer": question.correct_answer,
         "question_id": question.id 
     }
 
-# --- NOVO: Dependência para o Cronograma do Usuário ---
+# --- Dependência para o Cronograma do Usuário ---
 
 def get_current_user_cronograma(db: Session = Depends(get_db), current_user: models.User = Depends(security.get_current_user)) -> models.Cronograma:
     """
@@ -112,7 +102,6 @@ def get_current_user_cronograma(db: Session = Depends(get_db), current_user: mod
     """
     cronograma = crud.get_cronograma_by_owner_id(db, owner_id=current_user.id)
     
-    # Se o usuário não tem cronograma, cria um para ele
     if not cronograma:
         default_cronograma = schemas.CronogramaCreate(nome=f"Cronograma de {current_user.email.split('@')[0]}")
         cronograma = crud.create_user_cronograma(db, cronograma=default_cronograma, owner_id=current_user.id)
@@ -120,7 +109,7 @@ def get_current_user_cronograma(db: Session = Depends(get_db), current_user: mod
     return cronograma
 
 
-# --- NOVO: Endpoints do Cronograma (Protegidos) ---
+# --- Endpoints do Cronograma (Protegidos) ---
 
 @app.get("/cronograma/me", response_model=schemas.Cronograma)
 def get_my_cronograma(
@@ -133,19 +122,33 @@ def get_my_cronograma(
     """
     return cronograma
 
+# --- NOVO: Endpoint para o Cronograma Semanal ---
+
+@app.get("/cronograma/me/semanal")
+def get_my_weekly_schedule(
+    db: Session = Depends(get_db),
+    # Esta dependência garante que o usuário está logado e que o cronograma existe
+    cronograma: models.Cronograma = Depends(get_current_user_cronograma)
+):
+    """
+    Busca o cronograma do usuário e o formata em um plano de estudos
+    semanal, distribuindo os tópicos (não concluídos) pelos dias.
+    """
+    # Chama a nova função de lógica que criamos no crud.py
+    return crud.generate_weekly_schedule(db, cronograma_id=cronograma.id)
+
+# --- FIM DO NOVO CÓDIGO ---
+
 @app.post("/cronograma/materias", response_model=schemas.MateriaCronograma)
 def add_materia_to_my_cronograma(
     materia_data: schemas.MateriaCronogramaCreate,
     db: Session = Depends(get_db),
-    # Esta dependência garante que o usuário está logado e que temos um cronograma para ele
     cronograma: models.Cronograma = Depends(get_current_user_cronograma)
 ):
     """
     Adiciona uma nova matéria ao cronograma do usuário logado.
     Limita a 3 matérias por cronograma.
     """
-    # A função CRUD 'add_materia_to_cronograma' já contém a lógica de
-    # verificar o limite de 3 matérias e disparar um HTTPException se falhar.
     return crud.add_materia_to_cronograma(db, materia=materia_data, cronograma_id=cronograma.id)
 
 
@@ -160,19 +163,14 @@ def add_topico_to_my_materia(
     Adiciona um novo tópico customizado a uma matéria específica.
     Verifica se o usuário é dono da matéria e se o limite de 3 tópicos foi atingido.
     """
-    # 1. Busca a matéria no banco
     db_materia = crud.get_materia_by_id(db, materia_id=materia_id)
     
-    # 2. Verifica se a matéria existe
     if not db_materia:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Matéria não encontrada.")
         
-    # 3. VERIFICAÇÃO DE SEGURANÇA: Garante que o usuário logado é o dono
-    #    da matéria que ele está tentando editar.
     if db_materia.cronograma.owner_id != current_user.id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Você não tem permissão para editar esta matéria.")
     
-    # 4. Se tudo estiver OK, chama a função CRUD que contém a lógica de limite de 3 tópicos
     return crud.add_topico_to_materia(db, topico=topico_data, materia_id=materia_id)
 
 # --- Fim do Arquivo ---

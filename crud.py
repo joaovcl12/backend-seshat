@@ -123,3 +123,57 @@ def add_topico_to_materia(db: Session, topico: schemas.TopicoCronogramaCreate, m
     db.commit()
     db.refresh(db_topico)
     return db_topico
+
+# --- NOVO: Funções de Lógica do Cronograma ---
+
+def generate_weekly_schedule(db: Session, cronograma_id: int):
+    """
+    Gera uma sugestão de cronograma semanal, rotacionando os tópicos das matérias.
+    Retorna um dicionário formatado por dia da semana.
+    """
+    
+    # 1. Busca o cronograma e suas matérias/tópicos
+    db_cronograma = db.query(models.Cronograma).filter(models.Cronograma.id == cronograma_id).first()
+    
+    if not db_cronograma or not db_cronograma.materias:
+        return {"detalhe": "Nenhuma matéria encontrada neste cronograma."}
+
+    # 2. Extrai todos os tópicos de todas as matérias
+    # Ex: [[mat1_top1, mat1_top2], [mat2_top1]]
+    topicos_por_materia = []
+    for materia in db_cronograma.materias:
+        topicos_nao_concluidos = [t.nome for t in materia.topicos if not t.concluido]
+        if topicos_nao_concluidos:
+            topicos_por_materia.append(topicos_nao_concluidos)
+            
+    if not topicos_por_materia:
+        return {"detalhe": "Todos os tópicos já foram concluídos!"}
+
+    # 3. Define os dias da semana para o estudo
+    dias_da_semana = ["Segunda-feira", "Terça-feira", "Quarta-feira", "Quinta-feira", "Sexta-feira", "Sábado", "Domingo"]
+    
+    plano_semanal = {dia: "Descanso" for dia in dias_da_semana} # Começa com todos os dias como "Descanso"
+    
+    # 4. Lógica de distribuição (Intercalação / Round-Robin)
+    # Pega um tópico de cada matéria, depois o próximo tópico de cada, etc.
+    
+    dia_idx = 0
+    topico_idx = 0
+    continuar = True
+    
+    while dia_idx < len(dias_da_semana) and continuar:
+        continuar = False # Assume que terminamos, a menos que encontremos um tópico
+        
+        for materia_topicos in topicos_por_materia:
+            if topico_idx < len(materia_topicos):
+                # Se esta matéria ainda tem um tópico neste nível (topico_idx)
+                plano_semanal[dias_da_semana[dia_idx]] = materia_topicos[topico_idx]
+                dia_idx += 1 # Avança para o próximo dia
+                continuar = True # Encontramos um tópico, então continuamos o loop
+            
+            if dia_idx >= len(dias_da_semana):
+                break # Para se os dias da semana acabarem
+        
+        topico_idx += 1 # Avança para o próximo "nível" de tópicos
+        
+    return plano_semanal
