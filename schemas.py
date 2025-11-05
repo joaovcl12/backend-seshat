@@ -77,3 +77,14 @@ class Cronograma(CronogramaCreate):
 
     class Config:
         from_attributes = True # Permite ler de objetos SQLAlchemy
+
+class AnswerCheckRequest(BaseModel):
+    """ O que o frontend envia para /verificar """
+    question_id: int
+    user_answer: str # A opção que o usuário escolheu (ex: "A", "B", ou "0")
+
+class AnswerCheckResponse(BaseModel):
+    """ O que o backend responde """
+    is_correct: bool
+    correct_answer: str
+    question_id: int
