@@ -1,5 +1,6 @@
 # crud.py
-
+from sqlalchemy.orm import Session, joinedload # <-- ADICIONE joinedload AQUI
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 # Importa HTTPException para podermos retornar erros de lógica de negócio
@@ -132,19 +133,24 @@ def generate_weekly_schedule(db: Session, cronograma_id: int):
     Retorna um dicionário formatado por dia da semana.
     """
     
-    # 1. Busca o cronograma e suas matérias/tópicos
-    db_cronograma = db.query(models.Cronograma).filter(models.Cronograma.id == cronograma_id).first()
+    # --- CORREÇÃO APLICADA AQUI ---
+    # Usamos .options(joinedload(...)) para "forçar" o SQLAlchemy a
+    # carregar as matérias e os tópicos junto com o cronograma.
+    db_cronograma = db.query(models.Cronograma).options(
+        joinedload(models.Cronograma.materias).joinedload(models.MateriaCronograma.topicos)
+    ).filter(models.Cronograma.id == cronograma_id).first()
+    # --- FIM DA CORREÇÃO ---
     
     if not db_cronograma or not db_cronograma.materias:
-        return {"detalhe": "Nenhuma matéria encontrada neste cronograma."}
+        return {"detalhe": "Nenhuma matéria encontrada neste cronograma. Adicione matérias e tópicos primeiro."}
 
     # 2. Extrai todos os tópicos de todas as matérias
-    # Ex: [[mat1_top1, mat1_top2], [mat2_top1]]
     topicos_por_materia = []
     for materia in db_cronograma.materias:
         topicos_nao_concluidos = [t.nome for t in materia.topicos if not t.concluido]
         if topicos_nao_concluidos:
-            topicos_por_materia.append(topicos_nao_concluidos)
+            # NOVO: Adiciona a matéria ao nome do tópico para clareza
+            topicos_por_materia.append([(f"{materia.nome}: {t}") for t in topicos_nao_concluidos])
             
     if not topicos_por_materia:
         return {"detalhe": "Todos os tópicos já foram concluídos!"}
@@ -155,62 +161,22 @@ def generate_weekly_schedule(db: Session, cronograma_id: int):
     plano_semanal = {dia: "Descanso" for dia in dias_da_semana} # Começa com todos os dias como "Descanso"
     
     # 4. Lógica de distribuição (Intercalação / Round-Robin)
-    # Pega um tópico de cada matéria, depois o próximo tópico de cada, etc.
-    
     dia_idx = 0
     topico_idx = 0
     continuar = True
     
     while dia_idx < len(dias_da_semana) and continuar:
-        continuar = False # Assume que terminamos, a menos que encontremos um tópico
+        continuar = False 
         
         for materia_topicos in topicos_por_materia:
             if topico_idx < len(materia_topicos):
-                # Se esta matéria ainda tem um tópico neste nível (topico_idx)
                 plano_semanal[dias_da_semana[dia_idx]] = materia_topicos[topico_idx]
-                dia_idx += 1 # Avança para o próximo dia
-                continuar = True # Encontramos um tópico, então continuamos o loop
+                dia_idx += 1 
+                continuar = True 
             
             if dia_idx >= len(dias_da_semana):
-                break # Para se os dias da semana acabarem
+                break 
         
-        topico_idx += 1 # Avança para o próximo "nível" de tópicos
-
-# --- NOVO: Funções DELETE para o Cronograma ---
-
-def delete_materia_from_cronograma(db: Session, materia_id: int, user_id: int):
-    """ Deleta uma matéria do cronograma, verificando se o usuário é o dono. """
-    
-    # Busca a matéria
-    db_materia = get_materia_by_id(db, materia_id=materia_id)
-    
-    if not db_materia:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Matéria não encontrada.")
-    
-    # VERIFICAÇÃO DE SEGURANÇA: Garante que o usuário logado é o dono
-    if db_materia.cronograma.owner_id != user_id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Você não tem permissão para deletar esta matéria.")
-    
-    # Deleta a matéria (e o 'cascade' no models.py deletará os tópicos dela)
-    db.delete(db_materia)
-    db.commit()
-    return {"detail": "Matéria deletada com sucesso."}
-
-def delete_topico_from_materia(db: Session, topico_id: int, user_id: int):
-    """ Deleta um tópico de uma matéria, verificando se o usuário é o dono. """
-    
-    # Busca o tópico
-    db_topico = db.query(models.TopicoCronograma).filter(models.TopicoCronograma.id == topico_id).first()
-    
-    if not db_topico:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tópico não encontrado.")
-    
-    # VERIFICAÇÃO DE SEGURANÇA: Garante que o usuário logado é o dono
-    if db_topico.materia.cronograma.owner_id != user_id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Você não tem permissão para deletar este tópico.")
-        
-    db.delete(db_topico)
-    db.commit()
-    return {"detail": "Tópico deletado com sucesso."}
+        topico_idx += 1 
         
     return plano_semanal
