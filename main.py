@@ -173,4 +173,24 @@ def add_topico_to_my_materia(
     
     return crud.add_topico_to_materia(db, topico=topico_data, materia_id=materia_id)
 
+# --- NOVOS: Endpoints DELETE para o Cronograma (Protegidos) ---
+
+@app.delete("/cronograma/materias/{materia_id}")
+def delete_materia(
+    materia_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(security.get_current_user)
+):
+    """ Deleta uma matéria (e seus tópicos) do cronograma do usuário logado. """
+    return crud.delete_materia_from_cronograma(db, materia_id=materia_id, user_id=current_user.id)
+
+@app.delete("/cronograma/topicos/{topico_id}")
+def delete_topico(
+    topico_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(security.get_current_user)
+):
+    """ Deleta um tópico de uma matéria do cronograma do usuário logado. """
+    return crud.delete_topico_from_materia(db, topico_id=topico_id, user_id=current_user.id)
+
 # --- Fim do Arquivo ---

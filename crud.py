@@ -175,5 +175,42 @@ def generate_weekly_schedule(db: Session, cronograma_id: int):
                 break # Para se os dias da semana acabarem
         
         topico_idx += 1 # Avança para o próximo "nível" de tópicos
+
+# --- NOVO: Funções DELETE para o Cronograma ---
+
+def delete_materia_from_cronograma(db: Session, materia_id: int, user_id: int):
+    """ Deleta uma matéria do cronograma, verificando se o usuário é o dono. """
+    
+    # Busca a matéria
+    db_materia = get_materia_by_id(db, materia_id=materia_id)
+    
+    if not db_materia:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Matéria não encontrada.")
+    
+    # VERIFICAÇÃO DE SEGURANÇA: Garante que o usuário logado é o dono
+    if db_materia.cronograma.owner_id != user_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Você não tem permissão para deletar esta matéria.")
+    
+    # Deleta a matéria (e o 'cascade' no models.py deletará os tópicos dela)
+    db.delete(db_materia)
+    db.commit()
+    return {"detail": "Matéria deletada com sucesso."}
+
+def delete_topico_from_materia(db: Session, topico_id: int, user_id: int):
+    """ Deleta um tópico de uma matéria, verificando se o usuário é o dono. """
+    
+    # Busca o tópico
+    db_topico = db.query(models.TopicoCronograma).filter(models.TopicoCronograma.id == topico_id).first()
+    
+    if not db_topico:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tópico não encontrado.")
+    
+    # VERIFICAÇÃO DE SEGURANÇA: Garante que o usuário logado é o dono
+    if db_topico.materia.cronograma.owner_id != user_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Você não tem permissão para deletar este tópico.")
+        
+    db.delete(db_topico)
+    db.commit()
+    return {"detail": "Tópico deletado com sucesso."}
         
     return plano_semanal
