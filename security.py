@@ -24,7 +24,7 @@ if SECRET_KEY is None:
     raise EnvironmentError("FATAL: SECRET_KEY não foi definida no ambiente.")
 
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 30 # O token expira em 30 minutos
+ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7 #7 dias
 
 # Este é o "esquema" que diz ao FastAPI "Vá no Header da requisição, procure por
 # 'Authorization' e me dê o token que está lá".
