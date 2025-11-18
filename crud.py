@@ -133,13 +133,9 @@ def generate_weekly_schedule(db: Session, cronograma_id: int):
     Retorna um dicionário formatado por dia da semana.
     """
     
-    # --- CORREÇÃO APLICADA AQUI ---
-    # Usamos .options(joinedload(...)) para "forçar" o SQLAlchemy a
-    # carregar as matérias e os tópicos junto com o cronograma.
     db_cronograma = db.query(models.Cronograma).options(
         joinedload(models.Cronograma.materias).joinedload(models.MateriaCronograma.topicos)
     ).filter(models.Cronograma.id == cronograma_id).first()
-    # --- FIM DA CORREÇÃO ---
     
     if not db_cronograma or not db_cronograma.materias:
         return {"detalhe": "Nenhuma matéria encontrada neste cronograma. Adicione matérias e tópicos primeiro."}
@@ -149,7 +145,6 @@ def generate_weekly_schedule(db: Session, cronograma_id: int):
     for materia in db_cronograma.materias:
         topicos_nao_concluidos = [t.nome for t in materia.topicos if not t.concluido]
         if topicos_nao_concluidos:
-            # NOVO: Adiciona a matéria ao nome do tópico para clareza
             topicos_por_materia.append([(f"{materia.nome}: {t}") for t in topicos_nao_concluidos])
             
     if not topicos_por_materia:
