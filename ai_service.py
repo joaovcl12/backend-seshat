@@ -16,7 +16,7 @@ def generate_study_plan_ai(months: int, focus_areas: list[str]):
     """
     
     # Escolhemos o modelo (o Flash é rápido e barato/gratuito)
-    model = genai.GenerativeModel('gemini-1.5-flash')
+    model = genai.GenerativeModel('gemini-pro')
     
     # O Prompt é a parte mais importante. Damos instruções estritas para retornar JSON.
     prompt = f"""
