@@ -88,3 +88,11 @@ class AnswerCheckResponse(BaseModel):
     is_correct: bool
     correct_answer: str
     question_id: int
+
+class AIPlanRequest(BaseModel):
+    months: int
+    focus: List[str] = ["Geral"]
+
+
+class HintRequest(BaseModel):
+    question_id: int

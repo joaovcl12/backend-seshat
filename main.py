@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from typing import List 
 from datetime import timedelta
+import ai_service
 
 # Importa todos os nossos módulos
 import crud, models, schemas, database, security 
@@ -192,5 +193,35 @@ def delete_topico(
 ):
     """ Deleta um tópico de uma matéria do cronograma do usuário logado. """
     return crud.delete_topico_from_materia(db, topico_id=topico_id, user_id=current_user.id)
+
+@app.post("/ia/dica")
+def get_question_hint(
+    request: schemas.HintRequest,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(security.get_current_user)
+):
+    """
+    Gera uma dica para uma questão específica usando IA.
+    """
+    # 1. Busca a questão no banco para ter o contexto real
+    question = crud.get_question_by_id(db, question_id=request.question_id)
+    
+    if not question:
+        raise HTTPException(status_code=404, detail="Questão não encontrada.")
+    
+    # 2. Chama o serviço de IA
+    # Precisamos garantir que 'options' seja um dicionário para o prompt
+    options_dict = question.options
+    if isinstance(options_dict, list):
+        # Se for lista, converte para dict: {"0": "Opção A", "1": "Opção B"}
+        options_dict = {str(i): opt for i, opt in enumerate(options_dict)}
+
+    hint = ai_service.generate_question_hint(
+        question_text=question.text,
+        options=options_dict,
+        correct_option=question.correct_answer
+    )
+    
+    return {"dica": hint}
 
 # --- Fim do Arquivo ---
