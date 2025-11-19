@@ -59,7 +59,7 @@ def generate_question_hint(question_text: str, options: dict, correct_option: st
     """
     Usa o Gemini para gerar uma dica pedagógica sem revelar a resposta.
     """
-    model = genai.GenerativeModel('gemini-1.5-flash')
+    model = genai.GenerativeModel('gemini-pro')
     
     # O texto da opção correta
     correct_text = options.get(correct_option, "Desconhecida")
