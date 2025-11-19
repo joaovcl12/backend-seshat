@@ -125,6 +125,26 @@ def add_topico_to_materia(db: Session, topico: schemas.TopicoCronogramaCreate, m
     db.refresh(db_topico)
     return db_topico
 
+def delete_materia_from_cronograma(db: Session, materia_id: int, user_id: int):
+    db_materia = get_materia_by_id(db, materia_id=materia_id)
+    if not db_materia:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Matéria não encontrada.")
+    if db_materia.cronograma.owner_id != user_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Você não tem permissão para deletar esta matéria.")
+    db.delete(db_materia)
+    db.commit()
+    return {"detail": "Matéria deletada com sucesso."}
+
+def delete_topico_from_materia(db: Session, topico_id: int, user_id: int):
+    db_topico = db.query(models.TopicoCronograma).filter(models.TopicoCronograma.id == topico_id).first()
+    if not db_topico:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tópico não encontrada.")
+    if db_topico.materia.cronograma.owner_id != user_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Você não tem permissão para deletar este tópico.")
+    db.delete(db_topico)
+    db.commit()
+    return {"detail": "Tópico deletado com sucesso."}
+
 # --- NOVO: Funções de Lógica do Cronograma ---
 
 def generate_weekly_schedule(db: Session, cronograma_id: int):
