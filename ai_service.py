@@ -9,7 +9,7 @@ load_dotenv()
 client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
 
 # MODELO RECOMENDADO
-MODEL_NAME = "gemini-1.5-flash"   # ou gemini-3-pro-preview (se sua conta tiver acesso)
+MODEL_NAME = "models/gemini-2.5-flash"   # ou gemini-3.0-pro-preview (se sua conta tiver acesso)
 
 
 def generate_study_plan_ai(months: int, focus_areas: list[str]):
@@ -80,4 +80,3 @@ def generate_question_hint(question_text: str, options: dict, correct_option: st
     except Exception as e:
         print(f"Erro na IA (Dica): {e}")
         return "Tente revisar o enunciado com atenção aos detalhes principais."
-    
